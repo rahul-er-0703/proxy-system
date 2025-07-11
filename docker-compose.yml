@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  proxy-server:
+    build: ./proxy-server
+    ports:
+      - "9090:9090"
+
+  proxy-client:
+    build: ./proxy-client
+    ports:
+      - "8080:8080"
+    depends_on:
+      - proxy-server
