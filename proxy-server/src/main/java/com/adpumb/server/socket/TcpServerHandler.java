@@ -2,11 +2,13 @@ package com.adpumb.server.socket;
 
 import com.adpumb.server.dto.ProxyRequest;
 import com.adpumb.server.service.HttpForwardingService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
@@ -40,27 +42,45 @@ public class TcpServerHandler {
     }
 
     private void handleClient(Socket socket) {
+        InetAddress clientAddress = socket.getInetAddress();
         try (
                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()))
         ) {
             String json = reader.readLine();
-            logger.info("Received request: {}", json);
+            logger.info("Received request from {}: {}", clientAddress.getHostAddress(), json);
 
-            ProxyRequest request = objectMapper.readValue(json, ProxyRequest.class);
+            if (json == null || !json.trim().startsWith("{")) {
+                logger.warn("Invalid request format received from {}: {}", clientAddress.getHostAddress(), json);
+                writer.write("Invalid request format: expected JSON");
+                writer.newLine();
+                writer.flush();
+                return;
+            }
+
+            ProxyRequest request;
+            try {
+                request = objectMapper.readValue(json, ProxyRequest.class);
+            } catch (JsonProcessingException e) {
+                logger.error("Malformed JSON received from {}: {}", clientAddress.getHostAddress(), json, e);
+                writer.write("Invalid JSON format: " + e.getOriginalMessage());
+                writer.newLine();
+                writer.flush();
+                return;
+            }
+
             String response = forwardingService.forwardRequest(request.getTargetUrl());
-
             writer.write(response);
             writer.newLine();
             writer.flush();
 
         } catch (IOException e) {
-            logger.error("Error handling client connection", e);
+            logger.error("Error handling client connection from {}", clientAddress.getHostAddress(), e);
         } finally {
             try {
                 socket.close();
             } catch (IOException e) {
-                logger.warn("Failed to close client socket", e);
+                logger.warn("Failed to close client socket from {}", clientAddress.getHostAddress(), e);
             }
         }
     }

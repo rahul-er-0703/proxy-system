@@ -1,5 +1,7 @@
-FROM eclipse-temurin:17-jdk-alpine
+FROM openjdk:17
+LABEL maintainer="proxy-server"
 WORKDIR /app
-COPY target/proxy-server-0.0.1-SNAPSHOT.jar app.jar
+COPY target/proxy-server-1.jar app.jar
 EXPOSE 9090
 ENTRYPOINT ["java", "-jar", "app.jar"]
+

@@ -1,13 +1,26 @@
-version: "3.8"
 services:
   proxy-server:
-    build: ./proxy-server
+    build:
+      context: ./proxy-server
+      dockerfile: Dockerfile
+    container_name: proxy-server
     ports:
       - "9090:9090"
+    networks:
+      - proxy-network
 
   proxy-client:
-    build: ./proxy-client
+    build:
+      context: ./proxy-client
+      dockerfile: Dockerfile
+    container_name: proxy-client
     ports:
       - "8080:8080"
     depends_on:
       - proxy-server
+    networks:
+      - proxy-network
+
+networks:
+  proxy-network:
+    driver: bridge
